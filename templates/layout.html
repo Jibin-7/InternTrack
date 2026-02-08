@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}InternTrack{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="{{ 'logged-in' if current_user.is_authenticated else 'logged-out' }}">
+
+    {% if current_user.is_authenticated %}
+    <nav class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-rocket"></i>
+            </div>
+            <div class="logo-text">
+                Intern<span class="highlight">Track</span>
+            </div>
+        </div>
+        
+        <ul class="nav-links">
+            {% if current_user.role == 'student' %}
+                <li><a href="{{ url_for('main.student_dash') }}"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="{{ url_for('main.my_applications') }}"><i class="fas fa-file-alt"></i> Applications</a></li>
+                <li><a href="{{ url_for('main.notifications') }}"><i class="fas fa-bell"></i> Notifications</a></li>
+                <li><a href="{{ url_for('main.edit_profile') }}"><i class="fas fa-user-cog"></i> Profile</a></li>
+            
+            {% elif current_user.role == 'admin' %}
+                <li><a href="{{ url_for('main.admin_dash') }}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                <li><a href="{{ url_for('main.create_job') }}"><i class="fas fa-plus-circle"></i> Post Job</a></li>
+            
+            {% elif current_user.role == 'faculty' %}
+                <li>
+                    <a href="{{ url_for('main.faculty_dash') }}">
+                        <i class="fas fa-chart-pie"></i> Placement Tracker
+                    </a>
+                </li>
+            {% endif %}
+            
+            <li style="margin-top: auto;">
+                <a href="{{ url_for('main.logout') }}" style="color: #ef4444;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </li>
+        </ul>
+        
+        <div class="user-profile">
+            <div class="avatar">{{ current_user.name[0] | upper }}</div>
+            <div style="text-align: left;">
+                <p style="font-weight: 600; font-size: 0.9rem; margin: 0; color: white;">{{ current_user.name.split()[0] }}</p>
+                <span style="font-size: 0.75rem; color: #94a3b8; text-transform: capitalize;">{{ current_user.role }}</span>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div style="margin-bottom: 20px;">
+                {% for category, message in messages %}
+                    <div class="alert-box {{ category }}" style="padding: 15px; border-radius: 8px; margin-bottom: 10px; background: {{ 'rgba(16, 185, 129, 0.1)' if category == 'success' else 'rgba(239, 68, 68, 0.1)' }}; color: {{ '#34d399' if category == 'success' else '#f87171' }}; border: 1px solid {{ 'rgba(16, 185, 129, 0.2)' if category == 'success' else 'rgba(239, 68, 68, 0.2)' }};">
+                        <i class="fas {{ 'fa-check-circle' if category == 'success' else 'fa-exclamation-circle' }}"></i> {{ message }}
+                    </div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+        {% block auth_content %}{% endblock %}
+    </main>
+
+</body>
+</html>
