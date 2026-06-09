@@ -94,11 +94,6 @@
                 <input type="password" name="password" placeholder="Create a strong password" required>
             </div>
 
-            <div class="form-group" id="skills-box">
-                <label>Technical Skills <span style="font-weight: 400; color: #64748b;">(Comma separated)</span></label>
-                <textarea name="skills" rows="3" placeholder="Python, Java, SQL..." required></textarea>
-            </div>
-
             <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1rem; margin-top: 10px;">
                 Get Started
             </button>
@@ -115,15 +110,6 @@
         document.getElementById('reg_role').value = role;
         document.querySelectorAll('.role-toggle button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-
-        const skills = document.getElementById('skills-box');
-        if(role === 'student') {
-            skills.style.display = 'block';
-            skills.querySelector('textarea').required = true;
-        } else {
-            skills.style.display = 'none';
-            skills.querySelector('textarea').required = false;
-        }
     }
 </script>
 {% endblock %}

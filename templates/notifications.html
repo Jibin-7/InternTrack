@@ -120,10 +120,10 @@
 <div class="notification-list">
     {% for n in notifications %}
     
-    <div id="msg-content-{{ n._id }}" style="display: none;">{{ n.message }}</div>
+    <div id="msg-content-{{ n.id }}" style="display: none;">{{ n.text }}</div>
 
-    <div class="notif-card {{ 'unread' if not n.read else '' }}" 
-         onclick="openModal('{{ n.title|replace("'", "\\'") }}', '{{ n.date }}', '{{ n._id }}')">
+    <div class="notif-card {{ 'unread' if not n.is_read else '' }}" 
+         onclick="openModal('{{ n.title|replace("'", "\\'") }}', '{{ n.date }}', '{{ n.id }}')">
         
         <div style="display: flex; align-items: flex-start; flex: 1;">
             <div class="notif-icon" style="
@@ -138,12 +138,13 @@
 
             <div class="notif-content">
                 <h4>{{ n.title }}</h4>
-                <p>{{ n.message }}</p> </div>
+                <p>{{ n.text }}</p> 
+            </div>
         </div>
 
         <div style="display: flex; align-items: center;">
             <span class="notif-date">{{ n.date }}</span>
-            <a href="{{ url_for('main.delete_notification', note_id=n._id) }}" class="delete-btn" onclick="event.stopPropagation();">
+            <a href="{{ url_for('main.delete_notification', note_id=n.id) }}" class="delete-btn" onclick="event.stopPropagation();">
                 <i class="fas fa-trash"></i>
             </a>
         </div>
@@ -162,9 +163,7 @@
             <h3 id="modalTitle" style="margin: 0; color: #f8fafc; font-size: 1.25rem;">Message</h3>
             <span id="modalDate" class="modal-badge">Date</span>
         </div>
-        
         <div id="modalBody" class="modal-body"></div>
-
         <div class="modal-footer">
             <a href="#" id="markReadBtn" class="btn-read">
                 <i class="fas fa-check"></i> Mark as Done
@@ -176,20 +175,15 @@
 
 <script>
     function openModal(title, date, id) {
-        // 1. Get the full message text from the hidden div
         var fullMessage = document.getElementById('msg-content-' + id).innerText;
         
-        // 2. Set Modal Content
         document.getElementById('modalTitle').innerText = title;
         document.getElementById('modalBody').innerText = fullMessage;
         document.getElementById('modalDate').innerText = date;
         
-        // 3. Update 'Mark as Read' Link
-        // Assuming you have a route like /mark_read/<id>
-        // If you don't have this route yet, it will just reload the page.
-        document.getElementById('markReadBtn').href = "/mark_read/" + id;
+        // FIX 5: Pointing to the new specific single-read route we will create
+        document.getElementById('markReadBtn').href = "/notifications/mark_read/" + id;
         
-        // 4. Show Modal
         document.getElementById('notifModal').classList.add('active');
     }
 
@@ -197,7 +191,6 @@
         document.getElementById('notifModal').classList.remove('active');
     }
 
-    // Close on clicking outside
     document.getElementById('notifModal').addEventListener('click', function(e) {
         if (e.target === this) closeModal();
     });

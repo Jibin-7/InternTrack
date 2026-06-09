@@ -37,6 +37,7 @@
         width: 100%;
         transition: all 0.2s;
         font-family: 'Inter', sans-serif;
+        box-sizing: border-box;
     }
 
     input:focus, textarea:focus, select:focus {
@@ -49,15 +50,17 @@
     .input-group-row {
         display: flex;
         gap: 10px;
+        align-items: center;
     }
-    .input-group-row input { flex: 2; }
-    .input-group-row select { flex: 1; }
+    .input-group-row input { flex: 2; margin: 0; }
+    .input-group-row select { flex: 1; margin: 0; }
 
     /* Grid System */
     .grid-2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1.5rem;
+        align-items: start; 
     }
     @media (max-width: 768px) {
         .grid-2 { grid-template-columns: 1fr; }
@@ -73,6 +76,7 @@
         border-radius: 8px !important;
         cursor: pointer;
         display: inline-flex; align-items: center; gap: 8px;
+        width: fit-content;
     }
     
     .btn-outline {
@@ -84,32 +88,70 @@
         text-decoration: none !important;
         cursor: pointer;
         font-weight: 600;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        width: fit-content; /* CRITICAL FIX: Stops the button from stretching */
+        white-space: nowrap; /* CRITICAL FIX: Keeps text on one line */
     }
     .btn-outline:hover {
         border-color: #6366f1 !important;
         color: #6366f1 !important;
     }
+
+    /* Smooth transition for hidden inputs */
+    .custom-input {
+        display: none; 
+        margin-top: 8px;
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 </style>
 
 <div style="max-width: 900px; margin: 0 auto;">
     <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #334155; padding-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; border-bottom: 1px solid #334155; padding-bottom: 1.5rem;">
             <div>
                 <h2 style="font-size: 1.5rem; font-weight: 800; margin: 0;">Create Job Posting</h2>
                 <p style="margin-top: 5px;">Fill in the details below to attract top talent.</p>
             </div>
-            <a href="{{ url_for('main.admin_dash') }}" class="btn-outline">Cancel</a>
+            <a href="{{ url_for('main.admin_dash') }}" class="btn-outline">
+                <i class="fas fa-arrow-left"></i> Cancel
+            </a>
         </div>
         
         <form method="POST">
             <div class="grid-2">
                 <div>
                     <label>Job Title <span style="color: #ef4444;">*</span></label>
-                    <input type="text" name="title" placeholder="e.g. Senior Data Analyst" required>
+                    <select data-name="title" name="title" onchange="toggleCustomField(this, 'custom_title')" required>
+                        <option value="" disabled selected>Select a standard role...</option>
+                        <option value="Software Development Engineer (SDE)">Software Development Engineer (SDE)</option>
+                        <option value="Data Analyst Intern">Data Analyst Intern</option>
+                        <option value="Full Stack Web Developer">Full Stack Web Developer</option>
+                        <option value="Machine Learning Intern">Machine Learning Intern</option>
+                        <option value="Cybersecurity Analyst">Cybersecurity Analyst</option>
+                        <option value="Cloud Engineer Trainee">Cloud Engineer Trainee</option>
+                        <option value="Other">Other (Type custom title)</option>
+                    </select>
+                    <input type="text" id="custom_title" class="custom-input" placeholder="e.g. Senior Data Scientist">
                 </div>
                 <div>
                     <label>Company Name <span style="color: #ef4444;">*</span></label>
-                    <input type="text" name="company" placeholder="e.g. Amazon, Google" required>
+                    <select data-name="company" name="company" onchange="toggleCustomField(this, 'custom_company')" required>
+                        <option value="" disabled selected>Select hiring company...</option>
+                        <option value="TCS">TCS</option>
+                        <option value="Infosys">Infosys</option>
+                        <option value="Amazon">Amazon</option>
+                        <option value="Google">Google</option>
+                        <option value="L&T Infotech">L&T Infotech</option>
+                        <option value="Capgemini">Capgemini</option>
+                        <option value="Jio">Jio</option>
+                        <option value="Other">Other (Type company name)</option>
+                    </select>
+                    <input type="text" id="custom_company" class="custom-input" placeholder="Enter custom company name...">
                 </div>
             </div>
 
@@ -168,4 +210,28 @@
         </form>
     </div>
 </div>
+<script>
+    /**
+     * Universal Toggle: Swaps 'name' attribute between Select and Input
+     * to keep the Backend (app.py/routes.py) unchanged.
+     */
+    function toggleCustomField(selectObj, customInputId) {
+        const customInput = document.getElementById(customInputId);
+        const originalName = selectObj.getAttribute('data-name');
+        
+        if (selectObj.value === 'Other') {
+            customInput.style.display = 'block';
+            customInput.required = true;
+            customInput.name = originalName; 
+            selectObj.removeAttribute('name'); 
+        } else {
+            customInput.style.display = 'none';
+            customInput.required = false;
+            customInput.removeAttribute('name');
+            selectObj.name = originalName;
+            // Clear the custom input value so it doesn't accidentally submit
+            customInput.value = "";
+        }
+    }
+</script>
 {% endblock %}

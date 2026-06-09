@@ -17,6 +17,25 @@
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
     }
 
+    /* Fix for the Back Button Stretching */
+    .btn-outline {
+        background: transparent !important;
+        border: 1px solid #475569 !important;
+        color: #cbd5e1 !important;
+        padding: 10px 20px !important;
+        border-radius: 8px !important;
+        text-decoration: none !important;
+        cursor: pointer;
+        font-weight: 600;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        width: fit-content; /* Stops the horizontal stretching */
+        white-space: nowrap; /* Keeps text on one line */
+    }
+    .btn-outline:hover {
+        border-color: #6366f1 !important;
+        color: #6366f1 !important;
+    }
+
     /* Table Styling */
     table { width: 100%; border-collapse: collapse; }
     
@@ -71,7 +90,7 @@
 
     /* Header Section */
     .job-header {
-        display: flex; justify-content: space-between; align-items: center;
+        display: flex; justify-content: space-between; align-items: flex-start; /* Changed to flex-start */
         border-bottom: 1px solid #334155; padding-bottom: 1.5rem; margin-bottom: 1.5rem;
     }
 </style>
@@ -86,7 +105,7 @@
                     <span style="color: #6366f1; font-weight: 600;">{{ job.applicants|length }} Applicants</span>
                 </p>
             </div>
-            <a href="{{ url_for('main.admin_dash') }}" class="btn-outline" style="border-color: #475569; color: #cbd5e1;">
+            <a href="{{ url_for('main.admin_dash') }}" class="btn-outline">
                 <i class="fas fa-arrow-left"></i> Back to Dashboard
             </a>
         </div>

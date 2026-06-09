@@ -114,14 +114,23 @@
         <p style="font-size: 1.1rem;">Ready to land your dream job?</p>
     </div>
 
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <div style="text-align: right;">
-            <div style="font-weight: 800; font-size: 1.25rem; color: {% if percent == 100 %}#10b981{% else %}#6366f1{% endif %};">
-                {{ percent }}%
+    <div style="display: flex; align-items: center; gap: 30px;">
+        <div style="text-align: right; border-right: 1px solid #334155; padding-right: 30px;">
+            <div style="font-weight: 800; font-size: 1.25rem; color: {% if current_user.placement_probability >= 80 %}#10b981{% elif current_user.placement_probability >= 50 %}#fbbf24{% else %}#ef4444{% endif %};">
+                <i class="fas fa-robot"></i> {{ current_user.placement_probability }}%
             </div>
-            <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Profile Strength</div>
+            <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">ML Success Odds</div>
         </div>
-        <div class="progress-ring"></div>
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div style="text-align: right;">
+                <div style="font-weight: 800; font-size: 1.25rem; color: {% if percent == 100 %}#10b981{% else %}#6366f1{% endif %};">
+                    {{ percent }}%
+                </div>
+                <div style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase;">Profile Strength</div>
+            </div>
+            <div class="progress-ring"></div>
+        </div>
     </div>
 </div>
 
@@ -179,56 +188,84 @@
     
     <div>
         <div id="section-recommend">
-            <h3 style="margin-bottom: 1.5rem;">Recommended Opportunities</h3>
+            <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-sparkles" style="color: var(--accent);"></i> Recommended for You
+            </h3>
             
-            <div class="card" style="padding: 0; overflow: hidden;">
+            <div class="card" style="padding: 0 !important; overflow: hidden;">
                 {% for job in jobs %}
                 <div class="job-card">
-                    <div style="display: flex; gap: 1rem; align-items: flex-start; justify-content: space-between;">
-                        <div style="display: flex; gap: 1rem;">
-                            <div class="job-icon">{{ job.company[0] }}</div>
-                            <div>
-                                <h4 style="margin: 0; font-size: 1.1rem; font-weight: 700;">{{ job.title }}</h4>
-                                <div style="font-size: 0.9rem; margin-top: 4px; color: #94a3b8;">
-                                    {{ job.company }} &bull; <span style="color: #4ade80;">{{ job.salary }}</span>
-                                </div>
-                                <div style="margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap;">
-                                    {% if job.skills %}
-                                        {% for skill in job.skills.split(',')[:3] %}
-                                            <span class="job-skill-tag">{{ skill }}</span>
-                                        {% endfor %}
-                                    {% endif %}
-                                </div>
-                            </div>
+                    <div style="display: flex; gap: 1.25rem; align-items: center; flex: 1;">
+                        <div class="job-icon" style="flex-shrink: 0; width: 56px; height: 56px; background: #0f172a; border: 1px solid var(--border-color);">
+                            {{ job.company[0] }}
                         </div>
                         
-                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
-                            <button onclick="analyzeFit('{{ job.skills }}', '{{ job.company }}')" class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem; color: #a78bfa; border-color: #a78bfa;">
-                                <i class="fas fa-magic"></i> Analyze Fit
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                <h4 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: white;">{{ job.title }}</h4>
+                                {% if job.source == 'External' %}
+                                    <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.2); font-size: 0.65rem; padding: 2px 8px; border-radius: 4px;">
+                                        <i class="fas fa-globe"></i> WEB API
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <p style="margin: 0; font-size: 0.9rem; color: var(--text-muted);">
+                                <span style="font-weight: 600; color: #cbd5e1;">{{ job.company }}</span> &bull; {{ job.salary }}
+                            </p>
+                            <div style="margin-top: 8px; display: flex; gap: 6px;">
+                                {% if job.skills %}
+                                    {% for skill in job.skills.split(',')[:3] %}
+                                        <span class="job-skill-tag" style="background: #0f172a; border-color: #1e293b;">{{ skill.strip() }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+        
+                    <div class="job-actions-grid">
+                        <button onclick="openJobModal('{{ job.title }}', '{{ job.company }}', '{{ job.salary }}', '{{ job.skills }}', '{{ job.description|replace('\n', ' ')|replace('\r', ' ') }}', '{{ job.source }}', '{{ job.url }}', '{{ job._id }}', '{{ job._id|string in applied_ids }}')" 
+                                class="btn-outline">
+                            <i class="fas fa-info-circle"></i> &nbsp; Details
+                        </button>
+        
+                        <button onclick="analyzeFit('{{ job.skills }}', '{{ job.company }}')" 
+                                class="btn-outline" style="color: #a78bfa !important; border-color: rgba(167, 139, 250, 0.3) !important;">
+                            <i class="fas fa-wand-magic-sparkles"></i> &nbsp; AI Match
+                        </button>
+                        
+                        {% if job.source == 'External' %}
+                            <a href="{{ job.url }}" target="_blank" class="btn-secondary">
+                                Apply External <i class="fas fa-external-link-alt" style="font-size: 0.7rem; margin-left: 5px;"></i>
+                            </a>
+                        {% elif job._id|string in applied_ids %}
+                            <button class="btn-primary" style="background: #334155 !important; color: #94a3b8 !important; cursor: not-allowed; box-shadow: none;" disabled>
+                                <i class="fas fa-check-circle"></i> &nbsp; Applied
                             </button>
-                            
-                            <a href="{{ url_for('main.apply_job', job_id=job._id) }}" class="btn-primary" style="padding: 8px 16px; font-size: 0.9rem;">
+                        {% else %}
+                            <a href="{{ url_for('main.apply_job', job_id=job._id) }}" class="btn-primary">
                                 Apply Now
                             </a>
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 {% else %}
-                <div style="text-align: center; padding: 4rem;">
-                    <i class="fas fa-robot" style="font-size: 3rem; color: #334155; margin-bottom: 1rem;"></i>
-                    <p>No jobs found currently. Check back later!</p>
+                <div style="text-align: center; padding: 4rem; color: var(--text-muted);">
+                    <i class="fas fa-robot" style="font-size: 3rem; opacity: 0.2; margin-bottom: 1rem;"></i>
+                    <p>Scanning the web for more opportunities...</p>
                 </div>
                 {% endfor %}
             </div>
         </div>
 
         <div id="section-applications" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h3 id="app-list-title">My Applications</h3>
-                <button onclick="showSection('recommend')" class="btn-outline">Back to Feed</button>
+            <div class="section-header-row">
+                <h3 id="app-list-title" style="margin: 0;">My Applications</h3>
+                <button onclick="showSection('recommend')" class="btn-outline">
+                    <i class="fas fa-arrow-left" style="margin-right: 8px;"></i> Back to Feed
+                </button>
             </div>
             
-            <div class="card" style="padding: 0; overflow: hidden;">
+            <div class="card" style="padding: 0 !important; overflow: hidden;">
                 <table style="width: 100%; margin: 0;">
                     <thead style="background: #0f172a;">
                         <tr>
@@ -392,6 +429,57 @@
         return s.charAt(0).toUpperCase() + s.slice(1);
     }
 
+    function openJobModal(title, company, salary, skills, desc, source, url, jobId, hasApplied) {
+        document.getElementById('jobModalTitle').innerText = title;
+        document.getElementById('jobModalCompany').innerText = company;
+        document.getElementById('jobModalIcon').innerText = company.charAt(0);
+        document.getElementById('jobModalSalary').innerText = salary;
+        document.getElementById('jobModalSource').innerText = source === 'External' ? 'Adzuna Web API' : 'Campus Placement';
+        document.getElementById('jobModalDesc').innerText = desc || "No additional description provided by the recruiter.";
+
+        // Render Skill Tags
+        const skillDiv = document.getElementById('jobModalSkills');
+        skillDiv.innerHTML = '';
+        skills.split(',').forEach(s => {
+            if(s.trim()) {
+                const span = document.createElement('span');
+                span.className = 'job-skill-tag';
+                span.style.fontSize = '0.85rem';
+                span.innerText = s.trim();
+                skillDiv.appendChild(span);
+            }
+        });
+
+        // Update Apply Button dynamically based on application status
+        const applyBtn = document.getElementById('jobModalApplyBtn');
+        if (source === 'External') {
+            applyBtn.href = url;
+            applyBtn.target = "_blank";
+            applyBtn.innerText = "Apply via Adzuna";
+            applyBtn.style.background = "#0284c7";
+            applyBtn.style.pointerEvents = "auto";
+        } else if (hasApplied === 'True') {
+            applyBtn.href = "#";
+            applyBtn.innerHTML = "<i class='fas fa-check-circle'></i> Already Applied";
+            applyBtn.style.background = "#334155";
+            applyBtn.style.color = "#94a3b8";
+            applyBtn.style.pointerEvents = "none"; // Disables clicking
+        } else {
+            applyBtn.href = `/apply/${jobId}`;
+            applyBtn.target = "_self";
+            applyBtn.innerText = "Apply on Campus";
+            applyBtn.style.background = "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)";
+            applyBtn.style.color = "white";
+            applyBtn.style.pointerEvents = "auto";
+        }
+
+        document.getElementById('jobDetailModal').classList.add('active');
+    }
+
+function closeJobModal() {
+    document.getElementById('jobDetailModal').classList.remove('active');
+}
+
     // --- 3. TAB TOGGLE LOGIC ---
     function showSection(type) {
         document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active-card'));
@@ -447,4 +535,46 @@
         if(e.target == document.getElementById('analyzerModal')) closeAnalyzer();
     }
 </script>
+<div id="jobDetailModal" class="modal-overlay">
+    <div class="modal-card" style="max-width: 650px;">
+        <div class="modal-header" style="background: #0f172a; padding: 1.5rem; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div id="jobModalIcon" style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800;"></div>
+                <div>
+                    <h3 id="jobModalTitle" style="margin: 0; font-size: 1.3rem; color: #f8fafc;"></h3>
+                    <p id="jobModalCompany" style="margin: 0; color: #94a3b8; font-weight: 600;"></p>
+                </div>
+            </div>
+            <button onclick="closeJobModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.8rem; cursor: pointer;">&times;</button>
+        </div>
+        
+        <div style="padding: 2rem; max-height: 70vh; overflow-y: auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; background: #0f172a; padding: 1rem; border-radius: 12px;">
+                <div>
+                    <label style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Salary / Stipend</label>
+                    <div id="jobModalSalary" style="color: #4ade80; font-weight: 700; font-size: 1.1rem;"></div>
+                </div>
+                <div>
+                    <label style="font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase;">Source</label>
+                    <div id="jobModalSource" style="color: #38bdf8; font-weight: 700;"></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 2rem;">
+                <h4 style="color: #f8fafc; margin-bottom: 10px; font-size: 1rem; border-left: 4px solid #6366f1; padding-left: 10px;">Required Tech Stack</h4>
+                <div id="jobModalSkills" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <h4 style="color: #f8fafc; margin-bottom: 10px; font-size: 1rem; border-left: 4px solid #6366f1; padding-left: 10px;">About the Opportunity</h4>
+                <p id="jobModalDesc" style="color: #94a3b8; line-height: 1.7; font-size: 0.95rem;"></p>
+            </div>
+        </div>
+
+        <div style="padding: 1.5rem; border-top: 1px solid #334155; display: flex; gap: 1rem;">
+            <button onclick="closeJobModal()" class="btn-outline" style="flex: 1;">Close</button>
+            <a id="jobModalApplyBtn" href="#" class="btn-primary" style="flex: 2; text-align: center; text-decoration: none; justify-content: center;">Apply Now</a>
+        </div>
+    </div>
+</div>
 {% endblock %}

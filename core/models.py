@@ -26,11 +26,21 @@ class User(UserMixin):
         self.resume_link = user_data.get('resume_link', '')
         self.certificate_link = user_data.get('certificate_link', '')
         
+        # --- FIX: LOAD ACADEMIC & INTERNSHIP FIELDS ---
+        self.branch = user_data.get('branch', '')
+        self.study_year = user_data.get('study_year', '')
+        self.academic_year = user_data.get('academic_year', '')
+        self.division = user_data.get('division', '')
+        self.internships = user_data.get('internships', [])
+        # ----------------------------------------------
+        
         self.verification_status = user_data.get('verification_status', 'Pending')
         self.placement_status = user_data.get('placement_status', 'Open')
         self.notifications = user_data.get('notifications', [])
+        
+        # ML FIELD
+        self.placement_probability = user_data.get('placement_probability', 0)
 
-    # --- CRITICAL FIX: THIS WAS MISSING ---
     @property
     def unread_notifications_count(self):
         count = 0
@@ -48,13 +58,42 @@ class User(UserMixin):
             "placement_status": "Open", "notifications": [],
             "github": "", "linkedin": "", 
             "education": "", "cgpa": "", "experience": "", 
-            "resume_link": "", "certificate_link": ""
+            "resume_link": "", "certificate_link": "",
+            "branch": "", "study_year": "", "academic_year": "", "division": "",
+            "internships": []
         }
         return db.users.insert_one(user_data)
 
     @staticmethod
     def update_profile(user_id, data):
         db.users.update_one({"_id": ObjectId(user_id)}, {"$set": data})
+
+    @staticmethod
+    def get_skill_supply():
+        """
+        DBMS Flex: Uses an aggregation pipeline to split the comma-separated 
+        skills string, clean the text, and count frequencies across all students.
+        """
+        pipeline = [
+            {"$match": {"role": "student"}}, # Only look at students
+            {"$project": {"skillsArray": {"$split": [{"$ifNull": ["$skills", ""]}, ","]}}},
+            {"$unwind": "$skillsArray"},
+            {"$project": {"skill": {"$trim": {"input": {"$toLower": "$skillsArray"}}}}},
+            {"$match": {"skill": {"$ne": ""}}},
+            {"$group": {"_id": "$skill", "count": {"$sum": 1}}}
+        ]
+        results = list(db.users.aggregate(pipeline))
+        return {item['_id']: item['count'] for item in results}
+    
+    @staticmethod
+    def delete_user(user_id):
+        # 1. Delete the user document
+        db.users.delete_one({"_id": ObjectId(user_id)})
+        # 2. Clean up: Remove them from any jobs they applied to
+        db.jobs.update_many(
+            {"applicants.user_id": user_id},
+            {"$pull": {"applicants": {"user_id": user_id}}}
+        )
 
 class Job:
     @staticmethod
@@ -72,6 +111,14 @@ class Job:
             "user_id": user.id, "name": user.name, "email": user.email, "skills": user.skills,
             "status": "Applied", "applied_date": datetime.datetime.now()
         }
+        
+        # 1. Clear out any previous "Rejected" application for this specific user
+        db.jobs.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$pull": {"applicants": {"user_id": user.id, "status": "Rejected"}}}
+        )
+        
+        # 2. Push the new application
         db.jobs.update_one(
             {"_id": ObjectId(job_id), "applicants.user_id": {"$ne": user.id}}, 
             {"$push": {"applicants": applicant_entry}}
@@ -98,3 +145,25 @@ class Job:
     @staticmethod
     def delete_job(job_id):
         db.jobs.delete_one({"_id": ObjectId(job_id)})
+
+    @staticmethod
+    def get_skill_demand():
+        pipeline = [
+            {"$project": {"skillsArray": {"$split": [{"$ifNull": ["$skills", ""]}, ","]}}},
+            {"$unwind": "$skillsArray"},
+            {"$project": {"skill": {"$trim": {"input": {"$toLower": "$skillsArray"}}}}},
+            {"$match": {"skill": {"$ne": ""}}},
+            {"$group": {"_id": "$skill", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}}, 
+            {"$limit": 5}             
+        ]
+        return list(db.jobs.aggregate(pipeline))
+
+    @staticmethod
+    def get_total_applications_count():
+        pipeline = [
+            {"$project": {"app_count": {"$size": {"$ifNull": ["$applicants", []]}}}},
+            {"$group": {"_id": None, "total": {"$sum": "$app_count"}}}
+        ]
+        result = list(db.jobs.aggregate(pipeline))
+        return result[0]['total'] if result else 0

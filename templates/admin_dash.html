@@ -83,93 +83,129 @@
     .close-btn:hover { color: white; }
 </style>
 
-<div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-end;">
+<div class="admin-header">
     <div>
-        <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem;">Admin Overview</h1>
-        <p>Manage jobs, verify students, and track placement stats.</p>
+        <h1 style="font-size: 2.2rem; font-weight: 800; margin: 0; letter-spacing: -1px; color: white;">Admin Console</h1>
+        <p style="margin-top: 5px; color: #94a3b8;">System Health: <span style="color: #4ade80;">● Online</span></p>
     </div>
-    <a href="{{ url_for('main.create_job') }}" class="btn-primary">
-        <i class="fas fa-plus"></i> &nbsp; Post New Job
-    </a>
+    
+    <div style="display: flex; gap: 12px;">
+        <a href="{{ url_for('main.run_data_pipeline') }}" class="btn-outline" style="border-color: #38bdf8; color: #38bdf8; width: auto;">
+            <i class="fas fa-sync-alt"></i> &nbsp; Sync External APIs
+        </a>
+        <a href="{{ url_for('main.create_job') }}" class="btn-primary" style="width: auto;">
+            <i class="fas fa-plus"></i> &nbsp; Post Campus Job
+        </a>
+    </div>
 </div>
 
-<div class="grid-4">
+<div class="admin-stats-grid">
     <div class="stat-card active-card" onclick="filterStudents('all', this)">
-        <div class="stat-icon" style="color: #38bdf8 !important;"><i class="fas fa-users"></i></div>
+        <div class="stat-icon" style="color: #38bdf8 !important; background: transparent !important; font-size: 1.5rem;">
+            <i class="fas fa-users"></i>
+        </div>
         <div>
-            <div class="stat-value">{{ students|length }}</div>
-            <div class="stat-label">Total Students</div>
+            <div class="stat-value" style="font-size: 1.5rem; font-weight: 800;">{{ students|length }}</div>
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;">Total Students</div>
         </div>
     </div>
 
     <div class="stat-card" onclick="highlightJobs(this)">
-        <div class="stat-icon" style="color: #fbbf24 !important;"><i class="fas fa-briefcase"></i></div>
+        <div class="stat-icon" style="color: #fbbf24 !important; background: transparent !important; font-size: 1.5rem;">
+            <i class="fas fa-briefcase"></i>
+        </div>
         <div>
-            <div class="stat-value">{{ jobs|length }}</div>
-            <div class="stat-label">Active Jobs</div>
+            <div class="stat-value" style="font-size: 1.5rem; font-weight: 800;">{{ jobs|length }}</div>
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;">Active Jobs</div>
         </div>
     </div>
 
     <div class="stat-card" onclick="filterStudents('Placed', this)">
-        <div class="stat-icon" style="color: #4ade80 !important;"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-icon" style="color: #4ade80 !important; background: transparent !important; font-size: 1.5rem;">
+            <i class="fas fa-check-circle"></i>
+        </div>
         <div>
-            <div class="stat-value" id="val-placed">0</div>
-            <div class="stat-label">Placed Students</div>
+            <div class="stat-value" id="val-placed" style="font-size: 1.5rem; font-weight: 800;">0</div>
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;">Placed Students</div>
         </div>
     </div>
 
     <div class="stat-card" onclick="filterStudents('Interviewing', this)">
-        <div class="stat-icon" style="color: #a78bfa !important;"><i class="fas fa-user-clock"></i></div>
+        <div class="stat-icon" style="color: #a78bfa !important; background: transparent !important; font-size: 1.5rem;">
+            <i class="fas fa-user-clock"></i>
+        </div>
         <div>
-            <div class="stat-value" id="val-interview">0</div>
-            <div class="stat-label">Interviewing</div>
+            <div class="stat-value" id="val-interview" style="font-size: 1.5rem; font-weight: 800;">0</div>
+            <div class="stat-label" style="text-transform: uppercase; font-size: 0.7rem; font-weight: 700; letter-spacing: 1px;">Interviewing</div>
         </div>
     </div>
 </div>
 
 <div class="grid-2">
-    <div class="card">
-        <h3 style="margin-bottom: 1rem;">Skill Demand vs Supply</h3>
-        <div style="height: 250px;">
+    <div class="card" style="padding: 1.5rem !important;">
+        <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fas fa-chart-bar" style="color: #6366f1;"></i> Skill Demand vs Supply
+        </h3>
+        <div style="height: 280px;">
             <canvas id="marketChart"></canvas>
         </div>
     </div>
 
-    <div class="card">
-        <h3 style="margin-bottom: 1rem;">Placement Success</h3>
-        <div style="height: 250px;">
+    <div class="card" style="padding: 1.5rem !important;">
+        <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px; font-size: 1.1rem;">
+            <i class="fas fa-chart-pie" style="color: #10b981;"></i> Placement Success
+        </h3>
+        <div style="height: 280px;">
             <canvas id="statusChart"></canvas>
         </div>
     </div>
 </div>
 
-<div class="grid-2">
-    
-    <div id="jobSection" class="card" style="padding: 0 !important; overflow: hidden;">
-        <div style="padding: 1.5rem; border-bottom: 1px solid #334155; background: #0f172a;">
-            <h3 style="margin: 0; font-size: 1.1rem;">Active Job Listings</h3>
+<div class="admin-table-wrapper">
+    <div class="card" style="padding: 0 !important; overflow: hidden;">
+        <div class="admin-card-header">
+            <h3 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-briefcase" style="color: #fbbf24;"></i> Active Job Listings
+            </h3>
+            <span style="color: #64748b; font-size: 0.9rem;">{{ jobs|length }} Total Positions</span>
         </div>
-        <div style="max-height: 400px; overflow-y: auto;">
-            <table style="width: 100%; margin: 0;">
-                <thead style="position: sticky; top: 0; background: #0f172a; z-index: 10;">
+        <div style="max-height: 500px; overflow-y: auto;">
+            <table class="modern-table">
+                <thead>
                     <tr>
-                        <th style="padding-left: 1.5rem;">Role / Company</th>
-                        <th>Applicants</th>
-                        <th>Actions</th>
+                        <th style="width: 40%;">Role & Company</th>
+                        <th>Engagement</th>
+                        <th>Type</th>
+                        <th style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for job in jobs %}
                     <tr>
-                        <td style="padding-left: 1.5rem;">
-                            <div style="font-weight: 700; color: #f8fafc;">{{ job.title }}</div>
-                            <div style="font-size: 0.85rem; color: #94a3b8;">{{ job.company }}</div>
-                        </td>
-                        <td><span class="badge badge-blue">{{ job.app_count }} Applied</span></td>
                         <td>
-                            <div style="display: flex; gap: 8px;">
-                                <a href="{{ url_for('main.manage_job_applicants', job_id=job._id) }}" class="btn-outline" style="padding: 6px 10px; border-color: #475569; color: #cbd5e1;"><i class="fas fa-users-cog"></i></a>
-                                <a href="{{ url_for('main.delete_job', job_id=job._id) }}" class="btn-outline" style="padding: 6px 10px; border-color: #ef4444; color: #ef4444;" onclick="return confirm('Delete this job?');"><i class="fas fa-trash"></i></a>
+                            <div style="font-weight: 700; color: #f8fafc; font-size: 1rem;">{{ job.title }}</div>
+                            <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 2px;">{{ job.company }}</div>
+                        </td>
+                        <td>
+                            <span class="status-pill pill-blue">
+                                <i class="fas fa-user-friends"></i> {{ job.app_count }} Applicants
+                            </span>
+                        </td>
+                        <td>
+                            {% if job.source == 'External' %}
+                                <span class="status-pill pill-yellow" style="color: #38bdf8; border-color: #38bdf8; background: transparent;">WEB API</span>
+                            {% else %}
+                                <span class="status-pill" style="color: #94a3b8; border: 1px solid #334155;">CAMPUS</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                <a href="{{ url_for('main.manage_job_applicants', job_id=job._id) }}" class="btn-outline" style="padding: 8px 12px; height: 36px; min-width: auto; border-color: #475569;" title="Manage Applicants">
+                                    <i class="fas fa-users-cog"></i>
+                                </a>
+                                <a href="{{ url_for('main.delete_job', job_id=job._id) }}" class="btn-outline" style="padding: 8px 12px; height: 36px; min-width: auto; border-color: #ef4444; color: #ef4444;" onclick="return confirm('Delete this job?');">
+                                    <i class="fas fa-trash"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -178,60 +214,72 @@
             </table>
         </div>
     </div>
+</div>
 
+<div class="admin-table-wrapper">
     <div class="card" style="padding: 0 !important; overflow: hidden;">
-        <div style="padding: 1.5rem; border-bottom: 1px solid #334155; background: #0f172a; display: flex; justify-content: space-between; align-items: center;">
-            <h3 id="studentTableTitle" style="margin: 0; font-size: 1.1rem;">Student Roster</h3>
-            <input type="text" id="studentSearch" onkeyup="searchStudents()" placeholder="Search...">
+        <div class="admin-card-header">
+            <h3 id="studentTableTitle" style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-user-graduate" style="color: #6366f1;"></i> Student Roster
+            </h3>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <i class="fas fa-search" style="color: #475569;"></i>
+                <input type="text" id="studentSearch" onkeyup="searchStudents()" placeholder="Search by name, skill, or status..." style="width: 250px; background: #0f172a; border: 1px solid #334155; color: white; padding: 8px 15px; border-radius: 8px;">
+            </div>
         </div>
         
-        <div style="max-height: 400px; overflow-y: auto;">
-            <table id="adminStudentTable" style="width: 100%; margin: 0;">
-                <thead style="position: sticky; top: 0; background: #0f172a; z-index: 10;">
+        <div style="max-height: 600px; overflow-y: auto;">
+            <table id="adminStudentTable" class="modern-table">
+                <thead>
                     <tr>
-                        <th style="padding-left: 1.5rem;">Student</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style="width: 30%;">Student Identity</th>
+                        <th>Placement Status</th>
+                        <th>Verification</th>
+                        <th style="text-align: right;">Quick Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for student in students %}
                     <tr data-status="{{ student.placement_status }}">
-                        <td style="padding-left: 1.5rem;">
-                            <div style="font-weight: 600; color: #f8fafc;">{{ student.name }}</div>
-                            {% if student.verification_status == 'Pending' %}
-                                <span class="badge badge-yellow" style="font-size: 0.6rem;">Verify Pending</span>
-                            {% elif student.verification_status == 'Faculty Verified' %}
-                                <span class="badge badge-blue" style="font-size: 0.6rem;">Faculty Approved</span>
-                            {% elif student.verification_status == 'Rejected' %}
-                                <span class="badge badge-red" style="font-size: 0.6rem;">Rejected</span>
-                            {% endif %}
+                        <td>
+                            <div style="font-weight: 700; color: #f8fafc; font-size: 1rem;">{{ student.name }}</div>
+                            <div style="font-size: 0.85rem; color: #64748b;">{{ student.email }}</div>
                         </td>
                         <td>
                             {% if student.placement_status == 'Placed' %}
-                                <span class="badge badge-green">Placed</span>
+                                <span class="status-pill pill-green">PLACED</span>
                             {% elif student.placement_status == 'Interviewing' %}
-                                <span class="badge badge-yellow">Interviewing</span>
+                                <span class="status-pill pill-yellow">INTERVIEWING</span>
                             {% else %}
-                                <span class="badge badge-gray">Open</span>
+                                <span class="status-pill" style="color: #94a3b8; border: 1px solid #334155;">OPEN</span>
                             {% endif %}
                         </td>
                         <td>
-                            <div style="display: flex; gap: 6px;">
+                            {% if student.verification_status == 'Admin Verified' %}
+                                <span class="status-pill pill-green" style="font-size: 0.65rem;"><i class="fas fa-check-double"></i> Verified</span>
+                            {% elif student.verification_status == 'Faculty Verified' %}
+                                <span class="status-pill pill-blue" style="font-size: 0.65rem;"><i class="fas fa-user-shield"></i> Faculty OK</span>
+                            {% elif student.verification_status == 'Rejected' %}
+                                <span class="status-pill pill-red" style="font-size: 0.65rem;"><i class="fas fa-ban"></i> Rejected</span>
+                            {% else %}
+                                <span class="status-pill pill-yellow" style="font-size: 0.65rem;"><i class="fas fa-clock"></i> Pending</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
                                 {% if student.verification_status != 'Admin Verified' %}
-                                    <a href="{{ url_for('main.admin_verify_student', user_id=student._id) }}" class="btn-outline" style="padding: 6px 10px; border-color: #10b981; color: #10b981;" title="Approve"><i class="fas fa-check"></i></a>
+                                    <a href="{{ url_for('main.admin_verify_student', user_id=student._id) }}" class="btn-outline" style="padding: 8px 12px; height: 36px; min-width: auto; border-color: #10b981; color: #10b981;" title="Approve Student"><i class="fas fa-check"></i></a>
                                     {% if student.verification_status != 'Rejected' %}
-                                    <a href="{{ url_for('main.admin_reject_student', user_id=student._id) }}" class="btn-outline" style="padding: 6px 10px; border-color: #ef4444; color: #ef4444;" title="Reject"><i class="fas fa-times"></i></a>
+                                    <a href="{{ url_for('main.admin_reject_student', user_id=student._id) }}" class="btn-outline" style="padding: 8px 12px; height: 36px; min-width: auto; border-color: #ef4444; color: #ef4444;" title="Reject Student"><i class="fas fa-times"></i></a>
                                     {% endif %}
                                 {% endif %}
-                                <button onclick="openModal(
-                                    '{{ student.name }}', '{{ student.email }}', 
-                                    '{{ student.skills }}', '{{ student.placement_status }}', 
-                                    '{{ student.education }}', '{{ student.cgpa }}', 
-                                    '{{ student.resume_link }}')" 
-                                    class="btn-outline" style="padding: 6px 10px; border-color: #475569; color: #cbd5e1;" title="View Profile">
+                                <button onclick="openModal('{{ student.name }}', '{{ student.email }}', '{{ student.skills }}', '{{ student.placement_status }}', '{{ student.education }}', '{{ student.cgpa }}', '{{ student.resume_link }}')" 
+                                        class="btn-outline" style="padding: 8px 12px; height: 36px; min-width: auto; border-color: #6366f1; color: #6366f1;" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </button>
+                                <a href="{{ url_for('main.delete_student', user_id=student._id) }}" class="btn-outline" style="padding: 8px 12px; height: 36px; min-width: auto; border-color: #94a3b8; color: #94a3b8;" title="Delete" onclick="return confirm('Permanently delete student?');">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>

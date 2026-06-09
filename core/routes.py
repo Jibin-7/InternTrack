@@ -3,9 +3,11 @@ import re # Make sure re is imported
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from core import db, bcrypt
+from core import db, bcrypt, socketio
+from core.ai_service import calculate_similarity, extract_skills_from_pdf, predict_placement_probability
 from core.models import User, Job
 from core.ai_service import calculate_similarity
+from core.job_fetcher import sync_external_jobs
 from bson.objectid import ObjectId
 from collections import Counter
 import datetime
@@ -73,7 +75,15 @@ def login():
 def register():
     if request.method == 'POST':
         hashed_pw = bcrypt.generate_password_hash(request.form.get('password')).decode('utf-8')
-        User.create_user(request.form.get('name'), request.form.get('email'), hashed_pw, request.form.get('role'), request.form.get('skills'))
+        
+        # We now pass an empty string ("") for skills during initial signup
+        User.create_user(
+            request.form.get('name'), 
+            request.form.get('email'), 
+            hashed_pw, 
+            request.form.get('role'), 
+            "" 
+        )
         flash('Account created! Login to continue.', 'success')
         return redirect(url_for('main.login'))
     return render_template('register.html')
@@ -100,10 +110,15 @@ def student_dash():
     stats = {'applied': 0, 'interviews': 0, 'offers': 0}
 
     # Iterate through all jobs to find where user is an applicant
+    # Iterate through all jobs to find where user is an applicant
     for job in all_jobs:
         for app in job.get('applicants', []):
             if app['user_id'] == current_user.id:
-                applied_ids.append(str(job['_id']))
+                
+                # --- NEW: Only mark as 'applied' if they haven't been rejected ---
+                if app['status'] != 'Rejected':
+                    applied_ids.append(str(job['_id']))
+                
                 stats['applied'] += 1
                 
                 # Update Stats
@@ -117,7 +132,7 @@ def student_dash():
                     "status": app['status'],
                     "date": app.get('applied_date', datetime.datetime.now()).strftime("%Y-%m-%d") if isinstance(app.get('applied_date'), datetime.datetime) else "Recent"
                 })
-
+                
     return render_template('student_dash.html', 
                            jobs=recommended, 
                            applied_ids=applied_ids, 
@@ -142,7 +157,6 @@ def notifications():
 @login_required
 def edit_profile():
     if request.method == 'POST':
-        # 1. LINK VALIDATION
         github = request.form.get('github')
         linkedin = request.form.get('linkedin')
         
@@ -154,47 +168,90 @@ def edit_profile():
             flash('Invalid LinkedIn URL. Must be https://linkedin.com/in/username', 'danger')
             return redirect(url_for('main.edit_profile'))
 
-        # 2. FILE UPLOAD HANDLING
-        # FIX: Use getattr() instead of .get() because current_user is an Object
         resume_filename = getattr(current_user, 'resume_link', '')
         cert_filename = getattr(current_user, 'certificate_link', '')
+        
+        # Keep track of manual skills
+        current_skills = request.form.get('skills', '')
 
         if not os.path.exists(UPLOAD_FOLDER):
             os.makedirs(UPLOAD_FOLDER)
 
-        # Handle Resume
         if 'resume' in request.files:
             file = request.files['resume']
             if file and file.filename != '' and allowed_file(file.filename):
                 filename = secure_filename(f"{current_user.id}_resume.pdf")
-                file.save(os.path.join(UPLOAD_FOLDER, filename))
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                file.save(filepath)
                 resume_filename = filename
-            elif file.filename != '':
-                flash('Resume must be a PDF file.', 'danger')
-                return redirect(url_for('main.edit_profile'))
+                
+                # --- NEW NLP PARSER INTEGRATION ---
+                extracted_skills = extract_skills_from_pdf(filepath)
+                if extracted_skills:
+                    # Merge extracted skills with manually typed ones, avoiding duplicates
+                    combined = set([s.strip().lower() for s in current_skills.split(',') if s.strip()])
+                    combined.update([s.strip().lower() for s in extracted_skills.split(',')])
+                    current_skills = ", ".join([s.title() for s in combined])
+                    flash('AI successfully extracted new skills from your resume!', 'info')
 
-        # Handle Certificates
         if 'certificates' in request.files:
             file = request.files['certificates']
             if file and file.filename != '' and allowed_file(file.filename):
                 filename = secure_filename(f"{current_user.id}_certs.pdf") 
                 file.save(os.path.join(UPLOAD_FOLDER, filename))
                 cert_filename = filename
-            elif file.filename != '':
-                flash('Certificates must be a PDF file.', 'danger')
-                return redirect(url_for('main.edit_profile'))
 
-        # 3. UPDATE DATABASE
+        # --- NEW ML PREDICTOR INTEGRATION ---
+        cgpa = request.form.get('cgpa')
+        skill_count = len(current_skills.split(',')) if current_skills else 0
+        applied_jobs_count = db.jobs.count_documents({"applicants.user_id": current_user.id})
+        
+        prob_score = predict_placement_probability(cgpa, skill_count, applied_jobs_count)
+
+        internships = []
+        intern_count = int(request.form.get('intern_count', 0))
+
+        for i in range(intern_count):
+            comp = request.form.get(f'intern_company_{i}')
+            role = request.form.get(f'intern_role_{i}')
+            start = request.form.get(f'intern_start_{i}')
+            end = request.form.get(f'intern_end_{i}')
+            old_cert = request.form.get(f'old_intern_cert_{i}', '')
+
+            cert_file = request.files.get(f'intern_cert_{i}')
+            cert_filename = old_cert
+
+            # If they upload a new certificate for this specific internship
+            if cert_file and cert_file.filename != '' and allowed_file(cert_file.filename):
+                filename = secure_filename(f"{current_user.id}_intern_{i}_{uuid.uuid4().hex[:6]}.pdf")
+                cert_file.save(os.path.join(UPLOAD_FOLDER, filename))
+                cert_filename = filename
+
+            if comp and role:  # Only save if they actually filled it out
+                internships.append({
+                    "company": comp,
+                    "role": role,
+                    "start_date": start,
+                    "end_date": end,
+                    "certificate_link": cert_filename
+                })
+
         User.update_profile(current_user.id, {
             "name": request.form.get('name'),
-            "skills": request.form.get('skills'),
+            "skills": current_skills,
             "education": request.form.get('education'),
-            "cgpa": request.form.get('cgpa'),
+            "cgpa": cgpa,
             "experience": request.form.get('experience'),
             "resume_link": resume_filename,
-            "certificate_link": cert_filename,
+            "certificate_link": cert_filename, # Keeps generic certs intact
             "github": github,
-            "linkedin": linkedin
+            "linkedin": linkedin,
+            "placement_probability": prob_score,
+            "branch": request.form.get('branch', 'Not Specified'),
+            "academic_year": request.form.get('academic_year', 'Not Specified'),
+            "study_year": request.form.get('study_year', 'Not Specified'),
+            "division": request.form.get('division', 'Not Specified'),
+            "internships": internships # Array of all internships
         })
         
         flash('Profile Updated Successfully', 'success')
@@ -215,15 +272,26 @@ def apply_job(job_id):
 @login_required
 def faculty_dash():
     if current_user.role != 'faculty': return redirect(url_for('main.home'))
+    
     students = list(db.users.find({"role": "student"}))
+    
+    # --- ADD THIS QUICK FIX LOOP HERE ---
+    for student in students:
+        if 'placement_probability' not in student:
+            student['placement_probability'] = 0
+    # ------------------------------------
+
     active_jobs = list(db.jobs.find({"applicants.status": "Interviewing"}))
     interview_list = []
+    
     for job in active_jobs:
         for app in job['applicants']:
             if app.get('status') == 'Interviewing':
                 interview_list.append({"name": app.get('name'), "company": job['company'], "role": job['title']})
+                
     pending_students = [s for s in students if s.get('verification_status') == 'Pending']
     placed_count = sum(1 for s in students if s.get('placement_status') == 'Placed')
+    
     return render_template('faculty_dash.html', students=students, pending_students=pending_students, interview_list=interview_list, total=len(students), placed=placed_count)
 
 @main.route('/faculty/verify/<user_id>')
@@ -255,23 +323,48 @@ def nudge_student(user_id):
 @login_required
 def admin_dash():
     if current_user.role != 'admin': return redirect(url_for('main.home'))
+    
     jobs = list(db.jobs.find())
     students = list(db.users.find({"role": "student"}))
-    for job in jobs: job['app_count'] = len(job.get('applicants', []))
-    total_apps = sum(j['app_count'] for j in jobs)
+    
+    # 1. Update app_count for the table display
+    for job in jobs: 
+        job['app_count'] = len(job.get('applicants', []))
+    
+    # 2. OPTIMIZED: Use Mongo Aggregation for Total Apps
+    total_apps = Job.get_total_applications_count()
+    
+    # Keep salary logic in Python as regex parsing is complex in Mongo pipelines
     salaries = []
     for j in jobs:
         s_val = parse_salary(j.get('salary', '0'))
         if s_val > 0: salaries.append(s_val)
     avg_pkg = round(sum(salaries)/len(salaries), 2) if salaries else 0
-    job_skills_raw = [s.strip().lower() for j in jobs for s in j.get('skills','').split(',')]
-    stu_skills_raw = [s.strip().lower() for s in students for s in s.get('skills','').split(',')]
-    job_demand = Counter(job_skills_raw).most_common(5)
-    stu_supply = Counter(stu_skills_raw)
-    labels = [x[0].title() for x in job_demand]
-    data_demand = [x[1] for x in job_demand]
-    data_supply = [stu_supply[x[0]] for x in job_demand]
-    return render_template('admin_dash.html', jobs=jobs, students=students, total_apps=total_apps, avg_package=avg_pkg, labels=labels, data_demand=data_demand, data_supply=data_supply)
+    
+    # 3. OPTIMIZED: Use Mongo Aggregation for Chart Analytics
+    job_demand_results = Job.get_skill_demand()
+    stu_supply_dict = User.get_skill_supply()
+    
+    # Format data for Chart.js
+    labels = []
+    data_demand = []
+    data_supply = []
+    
+    for item in job_demand_results:
+        skill_name = item['_id']
+        labels.append(skill_name.title()) # Capitalize for the UI
+        data_demand.append(item['count'])
+        # Look up the supply from our O(1) dictionary, default to 0 if no students have it
+        data_supply.append(stu_supply_dict.get(skill_name, 0))
+
+    return render_template('admin_dash.html', 
+                           jobs=jobs, 
+                           students=students, 
+                           total_apps=total_apps, 
+                           avg_package=avg_pkg, 
+                           labels=labels, 
+                           data_demand=data_demand, 
+                           data_supply=data_supply)
 
 @main.route('/job/create', methods=['GET', 'POST'])
 @login_required
@@ -300,6 +393,20 @@ def manage_job_applicants(job_id):
     if current_user.role != 'admin': return redirect(url_for('main.home'))
     job = db.jobs.find_one({"_id": ObjectId(job_id)})
     return render_template('manage_job.html', job=job)
+
+@main.route('/admin/sync_external')
+@login_required
+def run_data_pipeline():
+    if current_user.role != 'admin': return redirect(url_for('main.home'))
+    
+    success, count = sync_external_jobs()
+    
+    if success:
+        flash(f'Pipeline Success: Synchronized {count} new real-world jobs from Adzuna API.', 'success')
+    else:
+        flash('Pipeline Failed. Check API credentials or rate limits.', 'danger')
+        
+    return redirect(url_for('main.admin_dash'))
 
 # --- PROFESSIONAL NOTIFICATION LOGIC ---
 import uuid
@@ -377,6 +484,12 @@ def update_application_status(job_id, user_id, action):
             {"_id": ObjectId(user_id)}, 
             {"$push": {"notifications": msg}}
         )
+
+        # --- NEW: EMIT REAL-TIME WEBSOCKET EVENT ---
+        socketio.emit('new_notification', {
+            'target_user_id': str(user_id), 
+            'notification': msg
+        })
         
         flash(f'Status updated to {new_status}', 'success')
     
@@ -447,4 +560,30 @@ def delete_notification(note_id):
         {"$pull": {"notifications": {"id": note_id}}}
     )
     flash('Message deleted.', 'success')
+    return redirect(url_for('main.notifications'))
+
+# --- NEW: Delete Student Route ---
+@main.route('/delete_student/<user_id>')
+@login_required
+def delete_student(user_id):
+    # Security: Allow both Admin and Faculty to delete
+    if current_user.role not in ['admin', 'faculty']: 
+        return redirect(url_for('main.home'))
+    
+    User.delete_user(user_id)
+    flash('Student account permanently deleted.', 'success')
+    
+    # Redirect back to the correct dashboard based on who clicked it
+    if current_user.role == 'admin':
+        return redirect(url_for('main.admin_dash'))
+    return redirect(url_for('main.faculty_dash'))
+
+# --- NEW: Mark Single Notification Read ---
+@main.route('/notifications/mark_read/<note_id>')
+@login_required
+def mark_single_notification_read(note_id):
+    db.users.update_one(
+        {"_id": ObjectId(current_user.id), "notifications.id": note_id},
+        {"$set": {"notifications.$.is_read": True}}
+    )
     return redirect(url_for('main.notifications'))

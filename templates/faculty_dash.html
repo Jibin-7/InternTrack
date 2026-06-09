@@ -52,12 +52,12 @@
     }
     #searchInput:focus { outline: none; border-color: #6366f1; }
 
-    /* MODAL STYLES (Fixed to be hidden by default) */
+    /* MODAL STYLES */
     .modal-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.8);
         backdrop-filter: blur(5px);
-        display: none; /* CRITICAL FIX: HIDDEN BY DEFAULT */
+        display: none;
         justify-content: center; align-items: center;
         z-index: 1000;
         opacity: 0; transition: opacity 0.2s ease;
@@ -66,7 +66,8 @@
 
     .modal-card {
         background: #1e293b; border: 1px solid #334155;
-        width: 90%; max-width: 600px; border-radius: 16px;
+        width: 90%; max-width: 750px; 
+        border-radius: 16px;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
         transform: scale(0.95); transition: transform 0.2s ease;
     }
@@ -75,6 +76,7 @@
     .modal-header {
         padding: 1.5rem; background: #0f172a; border-bottom: 1px solid #334155;
         display: flex; align-items: center; gap: 1.5rem;
+        border-top-left-radius: 16px; border-top-right-radius: 16px;
     }
     
     .close-btn {
@@ -84,6 +86,23 @@
     
     .job-skill-tag {
         background: #0f172a !important; color: #cbd5e1 !important; border: 1px solid #334155 !important;
+        padding: 4px 8px; border-radius: 6px; font-size: 0.8rem;
+    }
+
+    /* Custom Scrollbar for Modal content */
+    .scrollable-section::-webkit-scrollbar {
+        width: 6px;
+    }
+    .scrollable-section::-webkit-scrollbar-track {
+        background: #0f172a; 
+        border-radius: 4px;
+    }
+    .scrollable-section::-webkit-scrollbar-thumb {
+        background: #334155; 
+        border-radius: 4px;
+    }
+    .scrollable-section::-webkit-scrollbar-thumb:hover {
+        background: #475569; 
     }
 </style>
 
@@ -146,6 +165,37 @@
 </div>
 {% endif %}
 
+<div style="background: #1e293b; padding: 1.5rem; border: 1px solid #334155; border-radius: 12px; margin-bottom: 1.5rem; display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+    <strong style="color: #6366f1 !important; margin-right: 10px;"><i class="fas fa-filter"></i> Filter Roster:</strong>
+    
+    <select id="filterBranch" onchange="applyFilters()" style="background: #0f172a; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 6px;">
+        <option value="ALL">All Branches</option>
+        <option value="CMPN">CMPN</option>
+        <option value="IT">IT</option>
+        <option value="EXTC">EXTC</option>
+        <option value="MECH">MECH</option>
+    </select>
+
+    <select id="filterYear" onchange="applyFilters()" style="background: #0f172a; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 6px;">
+        <option value="ALL">All Study Years</option>
+        <option value="FE">FE</option>
+        <option value="SE">SE</option>
+        <option value="TE">TE</option>
+        <option value="BE">BE</option>
+    </select>
+    
+    <select id="filterAcadYear" onchange="applyFilters()" style="background: #0f172a; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 6px;">
+        <option value="">All Academic Years</option>
+    </select>
+    
+    <select id="filterDiv" onchange="applyFilters()" style="background: #0f172a; border: 1px solid #334155; color: white; padding: 8px 12px; border-radius: 6px; width: 130px;">
+        <option value="">All Divisions</option>
+        <option value="A">Division A</option>
+        <option value="B">Division B</option>
+        <option value="C">Division C</option>
+    </select>
+</div>
+
 <div class="grid-3-1">
     
     <div class="card" style="padding: 0 !important; overflow: hidden;">
@@ -160,16 +210,54 @@
                     <tr>
                         <th style="padding-left: 1.5rem;">Student Name</th>
                         <th>Top Skills</th>
-                        <th>Status</th>
+                        <th>ML Prediction</th> <th>Status</th>
                         <th style="text-align: right; padding-right: 1.5rem;">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for student in students %}
-                    <tr data-status="{{ student.placement_status }}">
+                    <tr data-status="{{ student.placement_status }}" 
+                        data-branch="{{ student.branch|default('') }}" 
+                        data-year="{{ student.study_year|default('') }}"
+                        data-acad="{{ student.academic_year|default('') }}"
+                        data-div="{{ student.division|default('') }}">
+                        
+                        <td style="display: none;" class="exp-data-store">{{ student.experience|default('No general experience provided.', true) }}</td>
+
+                        <td style="display: none;" class="intern-data-store">
+                            {% if student.internships %}
+                                <div class="scrollable-section" style="display: flex; flex-direction: column; gap: 12px; max-height: 250px; overflow-y: auto; padding-right: 8px;">
+                                {% for intern in student.internships %}
+                                    <div style="background: rgba(255, 255, 255, 0.02); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05); border-left: 3px solid #10b981;">
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                                            <strong style="color: #f8fafc; font-size: 1rem;">{{ intern.company }}</strong>
+                                            {% if intern.certificate_link %}
+                                            <a href="{{ url_for('static', filename='uploads/' + intern.certificate_link) }}" target="_blank" class="badge badge-green" style="text-decoration: none; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399;">
+                                                <i class="fas fa-award"></i> View Cert
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                        <div style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 6px; font-weight: 500;">{{ intern.role }}</div>
+                                        <div style="color: #64748b; font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
+                                            <i class="far fa-calendar-alt"></i> {{ intern.start_date }} &rarr; {{ intern.end_date }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                                </div>
+                            {% else %}
+                                <span style="color:#64748b;">No records provided</span>
+                            {% endif %}
+                        </td>
+
                         <td style="padding-left: 1.5rem;">
                             <div style="font-weight: 700; color: #f8fafc;">{{ student.name }}</div>
                             <div style="font-size: 0.85rem; color: #94a3b8;">{{ student.email }}</div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 800; font-size: 1rem; color: {% if student.placement_probability >= 80 %}#10b981{% elif student.placement_probability >= 50 %}#fbbf24{% else %}#ef4444{% endif %};">
+                                {{ student.placement_probability }}%
+                            </div>
+                            <div style="font-size: 0.7rem; color: #64748b; text-transform: uppercase; font-weight: 600;">Win Rate</div>
                         </td>
                         <td style="max-width: 200px;">
                             <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cbd5e1; font-size: 0.9rem;">
@@ -199,11 +287,21 @@
                                     Verify
                                 </a>
                             {% else %}
-                                <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                                <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+                                    
                                     {% if student.placement_status == 'Open' %}
-                                    <a href="{{ url_for('main.nudge_student', user_id=student._id) }}" class="btn-outline" style="padding: 6px 10px; color: #fbbf24; border-color: #fbbf24;" title="Send Reminder">
-                                        <i class="far fa-bell"></i>
-                                    </a>
+                                        {% if student.placement_probability < 40 %}
+                                            <span style="color: #ef4444; font-size: 0.75rem; font-weight: 700; margin-right: 5px;">
+                                                <i class="fas fa-exclamation-triangle"></i> AT-RISK
+                                            </span>
+                                            <a href="{{ url_for('main.nudge_student', user_id=student._id) }}" class="btn-outline" style="padding: 6px 10px; color: #ef4444; border-color: #ef4444;" title="Send AI Study Plan">
+                                                <i class="fas fa-life-ring"></i> Intervene
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ url_for('main.nudge_student', user_id=student._id) }}" class="btn-outline" style="padding: 6px 10px; color: #fbbf24; border-color: #fbbf24;" title="Send Reminder">
+                                                <i class="far fa-bell"></i>
+                                            </a>
+                                        {% endif %}
                                     {% endif %}
                                     
                                     <button onclick="openModal(
@@ -211,12 +309,16 @@
                                         '{{ student.email }}', 
                                         '{{ student.skills }}', 
                                         '{{ student.placement_status }}',
-                                        '{{ student.education }}',
+                                        '{{ student.branch|default('-') }} {{ student.study_year|default('-') }} ({{ student.division|default('-') }})',
                                         '{{ student.cgpa }}',
-                                        '{{ student.resume_link }}'
+                                        '{{ student.resume_link }}',
+                                        this.closest('tr')
                                     )" class="btn-outline" style="padding: 6px 12px; font-size: 0.8rem;">
                                         View
                                     </button>
+                                    <a href="{{ url_for('main.delete_student', user_id=student._id) }}" class="btn-outline" style="padding: 6px 10px; border-color: #ef4444; color: #ef4444;" title="Delete Student" onclick="return confirm('Are you sure? This will permanently delete the student and all their applications.');">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
                                 </div>
                             {% endif %}
                         </td>
@@ -264,45 +366,62 @@
 <div id="studentModal" class="modal-overlay">
     <div class="modal-card">
         <div class="modal-header">
-            <div style="width: 50px; height: 50px; background: #6366f1; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700;">
+            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);">
                 <span id="modalInitials"></span>
             </div>
             <div style="flex: 1;">
-                <h2 id="modalName" style="margin: 0; font-size: 1.5rem;">Student Name</h2>
-                <a id="modalEmailLink" href="#" style="color: #94a3b8; font-size: 0.95rem; text-decoration: none; display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                <h2 id="modalName" style="margin: 0; font-size: 1.5rem; color: #f8fafc;">Student Name</h2>
+                <a id="modalEmailLink" href="#" style="color: #94a3b8; font-size: 0.9rem; text-decoration: none; display: flex; align-items: center; gap: 6px; margin-top: 4px;">
                     <i class="far fa-envelope"></i> <span id="modalEmail">email@example.com</span>
                 </a>
             </div>
             <button onclick="closeModal()" class="close-btn">&times;</button>
         </div>
         
-        <div style="padding: 2rem;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-bottom: 2rem;">
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">EDUCATION</label>
-                    <div id="modalEdu" style="font-weight: 600; color: #f8fafc; font-size: 1rem;">-</div>
+        <div style="padding: 1.5rem;">
+            
+            <div style="display: flex; gap: 2rem; margin-bottom: 2rem; background: #0f172a; padding: 1.25rem; border-radius: 12px; border: 1px solid #334155; align-items: center;">
+                <div style="flex: 1;">
+                    <label style="font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Class Info</label>
+                    <div id="modalEdu" style="font-weight: 600; color: #f8fafc; font-size: 1rem; margin-top: 4px;">-</div>
                 </div>
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">CGPA</label>
-                    <div id="modalCGPA" style="font-weight: 600; color: #f8fafc; font-size: 1rem;">-</div>
+                <div style="flex: 1; border-left: 1px solid #334155; padding-left: 2rem;">
+                    <label style="font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">CGPA</label>
+                    <div id="modalCGPA" style="font-weight: 600; color: #f8fafc; font-size: 1rem; margin-top: 4px;">-</div>
                 </div>
-                 <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">CURRENT STATUS</label>
-                    <span id="modalStatus" class="badge">Open</span>
+                <div style="flex: 1; border-left: 1px solid #334155; padding-left: 2rem;">
+                    <label style="font-size: 0.7rem; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Current Status</label>
+                    <div style="margin-top: 6px;"><span id="modalStatus" class="badge">Open</span></div>
                 </div>
             </div>
 
-            <div style="margin-bottom: 2.5rem;">
-                <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px;">TECHNICAL SKILLS</label>
-                <div id="modalSkills" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+            <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 2rem; margin-bottom: 2rem;">
+                
+                <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px; color: #94a3b8;">General Project Experience</label>
+                        <div id="modalExperience" class="scrollable-section" style="color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155; max-height: 140px; overflow-y: auto;">-</div>
+                    </div>
+                    
+                    <div>
+                        <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px; color: #94a3b8;">Technical Skills</label>
+                        <div id="modalSkills" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px; color: #94a3b8;">Internship History</label>
+                    <div id="modalInternDates">-</div>
+                </div>
+
             </div>
 
             <div style="display: flex; gap: 1rem; border-top: 1px solid #334155; padding-top: 1.5rem;">
                 <a id="modalResume" href="#" target="_blank" class="btn-primary" style="flex: 1; text-align: center; justify-content: center; text-decoration: none; display: none;">
-                    <i class="fas fa-file-pdf"></i> &nbsp; View Resume
+                    <i class="fas fa-file-pdf"></i> Resume
                 </a>
                 <a id="emailActionBtn" href="#" class="btn-outline" style="flex: 1; text-align: center; justify-content: center; border-color: #475569; color: #cbd5e1;">
-                    <i class="fas fa-paper-plane"></i> &nbsp; Email Student
+                    <i class="fas fa-paper-plane"></i> Email Student
                 </a>
             </div>
              <p id="noResumeMsg" style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin-top: 15px; display: none;">
@@ -314,13 +433,25 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {
+        // --- 0. Dynamic Academic Year Filter Generation ---
+        const filterAcadYearSelect = document.getElementById('filterAcadYear');
+        const currentYear = new Date().getFullYear();
+        
+        for (let y = 2010; y <= currentYear; y++) {
+            let yearStr = y + "-" + (y + 1);
+            let opt = document.createElement("option");
+            opt.value = yearStr;
+            opt.text = yearStr;
+            filterAcadYearSelect.add(opt);
+        }
+
         // 1. Calculate Real-Time Stats
         const rows = document.querySelectorAll('#studentTable tbody tr');
         let counts = { 'Interviewing': 0, 'Hold': 0, 'Open': 0, 'Placed': 0 };
 
         rows.forEach(row => {
             let status = row.getAttribute('data-status');
-            if(status === 'Rejected') status = 'Open'; // Group rejected with open
+            if(status === 'Rejected') status = 'Open'; 
             
             if(counts[status] !== undefined) counts[status]++;
             else if(status === 'Placed') counts['Placed']++;
@@ -355,54 +486,79 @@
         });
     });
 
-    // 3. Filter Logic
+    // --- FACULTY FILTER LOGIC ---
+    let currentStatusFilter = 'all';
+
     function filterByStatus(status) {
+        currentStatusFilter = status;
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const branchVal = document.getElementById('filterBranch').value.toUpperCase();
+        const yearVal = document.getElementById('filterYear').value.toUpperCase();
+        const acadVal = document.getElementById('filterAcadYear').value.toUpperCase();
+        const divVal = document.getElementById('filterDiv').value.toUpperCase();
+        const searchInput = document.getElementById("searchInput").value.toUpperCase();
         const rows = document.querySelectorAll('#studentTable tbody tr');
         const title = document.getElementById('tableTitle');
 
+        // Update Title based on Status Filter
+        if (currentStatusFilter === 'all') title.innerText = "All Students";
+        else if (currentStatusFilter === 'Open') title.innerText = "Students Still Looking";
+        else title.innerText = currentStatusFilter + " Students";
+
         rows.forEach(row => {
-            const rowStatus = row.getAttribute('data-status');
-            if (status === 'all') {
+            const status = row.getAttribute('data-status');
+            const branch = row.getAttribute('data-branch').toUpperCase();
+            const year = row.getAttribute('data-year').toUpperCase();
+            const acad = row.getAttribute('data-acad').toUpperCase();
+            const div = row.getAttribute('data-div').toUpperCase();
+            const name = row.cells[2].textContent.toUpperCase(); 
+            const skills = row.cells[4].textContent.toUpperCase(); 
+
+            let matchStatus = true;
+            if (currentStatusFilter !== 'all') {
+                if (currentStatusFilter === 'Open') matchStatus = (status === 'Open' || status === 'Rejected');
+                else matchStatus = (status === currentStatusFilter);
+            }
+
+            let matchBranch = (branchVal === 'ALL' || branch.includes(branchVal));
+            let matchYear = (yearVal === 'ALL' || year.includes(yearVal));
+            let matchAcad = (acadVal === '' || acad.includes(acadVal));
+            let matchDiv = (divVal === '' || div.includes(divVal));
+            let matchSearch = (name.indexOf(searchInput) > -1 || skills.indexOf(searchInput) > -1);
+
+            if (matchStatus && matchBranch && matchYear && matchAcad && matchDiv && matchSearch) {
                 row.style.display = '';
-                title.innerText = "All Students";
-            } else if (status === 'Open') {
-                if (rowStatus === 'Open' || rowStatus === 'Rejected') row.style.display = '';
-                else row.style.display = 'none';
-                title.innerText = "Students Still Looking";
             } else {
-                if (rowStatus === status) row.style.display = '';
-                else row.style.display = 'none';
-                title.innerText = status + " Students";
+                row.style.display = 'none';
             }
         });
     }
 
-    // 4. Search Logic
     function searchTable() {
-        const input = document.getElementById("searchInput").value.toUpperCase();
-        const rows = document.querySelectorAll('#studentTable tbody tr');
-        
-        rows.forEach(row => {
-            const name = row.cells[0].textContent || row.cells[0].innerText;
-            const skills = row.cells[1].textContent || row.cells[1].innerText;
-            if (name.toUpperCase().indexOf(input) > -1 || skills.toUpperCase().indexOf(input) > -1) {
-                row.style.display = "";
-            } else {
-                row.style.display = "none";
-            }
-        });
+        applyFilters(); 
     }
 
-    // 5. Modal Logic
-    function openModal(name, email, skills, status, edu, cgpa, resume) {
+    // --- MODAL LOGIC WITH EXPERIENCE & INTERNSHIPS ---
+    function openModal(name, email, skills, status, classInfo, cgpa, resume, rowElement) {
         document.getElementById('modalName').innerText = name;
         document.getElementById('modalEmail').innerText = email;
         document.getElementById('modalInitials').innerText = name.charAt(0);
         document.getElementById('modalEmailLink').href = `mailto:${email}`;
         document.getElementById('emailActionBtn').href = `mailto:${email}`;
 
-        document.getElementById('modalEdu').innerText = (edu && edu !== 'None' && edu !== '') ? edu : 'Not Provided';
-        document.getElementById('modalCGPA').innerText = (cgpa && cgpa !== 'None' && cgpa !== '') ? cgpa : '-';
+        document.getElementById('modalEdu').innerText = classInfo;
+        document.getElementById('modalCGPA').innerText = cgpa && cgpa !== 'None' ? cgpa : '-';
+
+        // Extract hidden Experience text
+        const expHtml = rowElement.querySelector('.exp-data-store').innerHTML;
+        document.getElementById('modalExperience').innerHTML = expHtml;
+
+        // Extract hidden Internship HTML
+        const internHtml = rowElement.querySelector('.intern-data-store').innerHTML;
+        document.getElementById('modalInternDates').innerHTML = internHtml;
         
         // Render Skills
         const skillsContainer = document.getElementById('modalSkills');
@@ -427,21 +583,20 @@
         else if(status === 'Hold') badge.classList.add('badge-purple');
         else badge.classList.add('badge-gray');
 
-        // Render Resume Button
+        // Render Action Buttons
         const resumeBtn = document.getElementById('modalResume');
-        const noResumeMsg = document.getElementById('noResumeMsg');
+        const noDocsMsg = document.getElementById('noResumeMsg');
         
         if (resume && resume !== 'None' && resume !== '') {
-            if (resume.startsWith('http')) resumeBtn.href = resume;
-            else resumeBtn.href = `/static/uploads/${resume}`;
+            resumeBtn.href = resume.startsWith('http') ? resume : `/static/uploads/${resume}`;
             resumeBtn.style.display = 'inline-flex';
-            noResumeMsg.style.display = 'none';
-        } else {
-            resumeBtn.style.display = 'none';
-            noResumeMsg.style.display = 'block';
+            noDocsMsg.style.display = 'none';
+        } else { 
+            resumeBtn.style.display = 'none'; 
+            noDocsMsg.style.display = 'block';
         }
 
-        // Show Modal (Add class 'active' to overlay)
+        // Show Modal
         document.getElementById('studentModal').classList.add('active');
     }
 
